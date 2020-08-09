@@ -164,6 +164,36 @@ def identify_parts(image, raw, n_parts, version):
         fname = directory + str(i) + ".png"
         plt.savefig(fname, bbox_inches="tight")
 
+def save_demo(img, mu, counter, model_dir, target_dir="demo-predictions"):
+    batch_size, out_shape = img.shape[0], img.shape[1:3]
+    marker_list = ["o", "v", "s", "|", "_"]
+    directory = os.path.join(model_dir, target_dir)
+    print(directory)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    s = out_shape[0] // 8
+    n_parts = mu.shape[-2]
+    mu_img = (mu + 1.0) / 2.0 * np.array(out_shape)[0]
+    steps = batch_size
+    step_size = 1
+
+    for i in range(0, steps, step_size):
+        plt.imshow(img[i])
+        for j in range(n_parts):
+            plt.scatter(
+                mu_img[i, j, 1],
+                mu_img[i, j, 0],
+                s=s,
+                marker=marker_list[np.mod(j, len(marker_list))],
+                color=cm.hsv(float(j / n_parts)),
+            )
+
+        plt.axis("off")
+        fname = os.path.join(directory, str(counter) + "_" + str(i) + ".png")
+        print("Saving prediction " + fname)
+        plt.savefig(fname, bbox_inches="tight")
+        plt.close()
+
 
 def save(img, mu, counter, model_dir):
     batch_size, out_shape = img.shape[0], img.shape[1:3]
