@@ -206,7 +206,7 @@ def load_train_from_csv_static(
 def load_test_from_csv_static(
     arg,
     data_root="datasets/deepfashion/images",
-    data_csv="datasets/deepfashion/data_test.csv",
+    data_csv="datasets/deepfashion/data_demo.csv",
     id_col_name="id",
     fname_col_name="filename",
 ):
@@ -249,6 +249,7 @@ dataset_map_train = {
     "csv": load_train_from_csv_nonstatic,
     "deepfashion": load_train_from_csv_static,
 }
+
 dataset_map_test = {
     "generic": load_test_generic,
     "human3m": load_test_human3m,

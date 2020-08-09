@@ -17,6 +17,7 @@ from utils import (
     batch_colour_map,
     save_demo,
     initialize_uninitialized,
+    populate_demo_csv_file
 )
 import tensorflow as tf
 import numpy as np
@@ -34,6 +35,7 @@ def pck(distances: np.ndarray, tolerance_pixels: int, image_size: int):
 
 
 def main(arg):
+    populate_demo_csv_file("./datasets/deepfashion/images/demo/")
     model_save_dir = os.path.join("experiments", arg.name)
     with tf.variable_scope("Data_prep"):
         raw_dataset = dataset_map_test[arg.dataset](arg)
@@ -85,33 +87,35 @@ def main(arg):
 
             initialize_uninitialized(sess)
             mu_list = []
-            try:
-                feed = transformation_parameters(
-                    arg, ctr, no_transform=True
-                )  # no transform if arg.visualize
-                trf = {
-                    scal: feed.scal,
-                    tps_scal: feed.tps_scal,
-                    scal_var: feed.scal_var,
-                    rot_scal: feed.rot_scal,
-                    off_scal: feed.off_scal,
-                    augm_scal: feed.augm_scal,
-                }
-                ctr += 1
+            while True:
+                try:
+                    feed = transformation_parameters(
+                        arg, ctr, no_transform=True
+                    )  # no transform if arg.visualize
+                    trf = {
+                        scal: feed.scal,
+                        tps_scal: feed.tps_scal,
+                        scal_var: feed.scal_var,
+                        rot_scal: feed.rot_scal,
+                        off_scal: feed.off_scal,
+                        augm_scal: feed.augm_scal,
+                    }
+                    ctr += 1
 
-                img, img_rec, mu, heat_raw = sess.run(
-                    [
-                        model.image_in,
-                        model.reconstruct_same_id,
-                        model.mu,
-                        batch_colour_map(model.part_maps),
-                    ],
-                    feed_dict=trf,
-                )
-                save_demo(img[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
-                mu_list.append(mu[: arg.bn, ...])
-            except tf.errors.OutOfRangeError:
-                print("End of Prediction")
+                    img, img_rec, mu, heat_raw = sess.run(
+                        [
+                            model.image_in,
+                            model.reconstruct_same_id,
+                            model.mu,
+                            batch_colour_map(model.part_maps),
+                        ],
+                        feed_dict=trf,
+                    )
+                    save_demo(img[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
+                    mu_list.append(mu[: arg.bn, ...])
+                except tf.errors.OutOfRangeError:
+                    print("End of Prediction")
+                    break
             print("Saving outputs")
             mu_list = np.concatenate(mu_list, axis=0)
             np.savez_compressed(

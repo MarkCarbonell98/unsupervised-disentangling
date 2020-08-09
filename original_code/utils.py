@@ -294,3 +294,14 @@ def convert_image_np(inp):
     inp = inp.numpy().transpose((1, 2, 0))
     inp = np.clip(inp, 0, 1)
     return inp
+
+def populate_demo_csv_file(img_dir, csv_path="./datasets/deepfashion/data_demo.csv"):
+    """ Populate the csv_path with image names from img_dir """
+    images = [f for f in os.listdir(img_dir)]
+    os.remove(csv_path)
+    with open(csv_path, 'w') as f:
+        f.write("id,filename\n")
+        for (idx, img_path) in enumerate(images):
+            f.write("" + str(idx) + "," + os.path.join("demo", img_path) + "\n")
+
+
