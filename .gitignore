@@ -6,6 +6,8 @@
 
 **/logs
 **/summaries
+**/save_net.ckpt-*
+
 
 ### Linux ###
 *~
