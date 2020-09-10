@@ -234,6 +234,26 @@ def save(img, mu, counter, model_dir):
         plt.close()
 
 
+
+def save_no_kps(img, counter, model_dir, dirname="images"):
+    batch_size, out_shape = img.shape[0], img.shape[1:3]
+    directory = os.path.join(model_dir, dirname)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    s = out_shape[0] // 8
+    steps = batch_size
+    step_size = 1
+
+    for i in range(0, steps, step_size):
+        plt.imshow(img[i])
+
+        plt.axis("off")
+        fname = os.path.join(directory, str(counter) + "_" + str(i) + ".png")
+        print(fname)
+        plt.savefig(fname, bbox_inches="tight")
+        plt.close()
+
+
 @wrappy
 def tf_summary_feat_and_parts(
     encoding_list, part_depths, visualize_features=False, square=True

@@ -79,7 +79,7 @@ def main(arg):
     if "infer" in arg.mode:
         with tf.Session(config=config) as sess:
 
-            model = Model(orig_images, arg, tps_param_dic)
+            model = Model(orig_images, arg, tps_param_dic, optimize=False)
             tvar = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
             saver = tf.train.Saver(var_list=tvar)
             merged = tf.summary.merge_all()
@@ -113,7 +113,7 @@ def main(arg):
                         ],
                         feed_dict=trf,
                     )
-                    save(img[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
+                    save(img[: arg.bn, ...], mu[: arg.bn, ...],img_rec[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
                     mu_list.append(mu[: arg.bn, ...])
                 except tf.errors.OutOfRangeError:
                     print("End of Prediction")
