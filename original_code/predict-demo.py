@@ -16,6 +16,7 @@ from utils import (
     find_ckpt,
     batch_colour_map,
     save_demo,
+    save,
     initialize_uninitialized,
     populate_demo_csv_file
 )
@@ -26,6 +27,7 @@ import sklearn
 import seaborn
 from sklearn import *
 import json
+import cv2
 
 
 def pck(distances: np.ndarray, tolerance_pixels: int, image_size: int):
@@ -111,7 +113,7 @@ def main(arg):
                         ],
                         feed_dict=trf,
                     )
-                    save_demo(img[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
+                    save(img[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
                     mu_list.append(mu[: arg.bn, ...])
                 except tf.errors.OutOfRangeError:
                     print("End of Prediction")

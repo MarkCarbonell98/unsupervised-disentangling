@@ -3,7 +3,7 @@ import tensorflow as tf
 import numpy as np
 import os
 import matplotlib
-
+from typing import *
 
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
@@ -12,6 +12,7 @@ from matplotlib import cm
 import glob
 from shutil import copyfile
 from dotmap import DotMap
+import cv2
 
 
 def wrappy(func):
@@ -173,26 +174,34 @@ def save_demo(img, mu, counter, model_dir, target_dir="demo-predictions"):
         os.makedirs(directory)
     s = out_shape[0] // 8
     n_parts = mu.shape[-2]
-    mu_img = (mu + 1.0) / 2.0 * np.array(out_shape)[0]
+    mu_img = mu
     steps = batch_size
     step_size = 1
 
     for i in range(0, steps, step_size):
-        plt.imshow(img[i])
-        for j in range(n_parts):
-            plt.scatter(
-                mu_img[i, j, 1],
-                mu_img[i, j, 0],
-                s=s,
-                marker=marker_list[np.mod(j, len(marker_list))],
-                color=cm.hsv(float(j / n_parts)),
-            )
+      kp_coords = mu_img[i, :, ::-1]
+      img_keypoints = draw_keypoint_markers(img[i], kp_coords)
+      img_keypoints = cv2.cvtColor(img_keypoints, cv2.COLOR_RGB2BGR)
+      img_keypoints = np.cast["uint8"](img_keypoints*255)
 
-        plt.axis("off")
-        fname = os.path.join(directory, str(counter) + "_" + str(i) + ".png")
-        print("Saving prediction " + fname)
-        plt.savefig(fname, bbox_inches="tight")
-        plt.close()
+#        plt.imshow(img[i])
+#        for j in range(n_parts):
+#            plt.scatter(
+#                mu_img[i, j, 1],
+#                mu_img[i, j, 0],
+#                s=s,
+#                marker=marker_list[np.mod(j, len(marker_list))],
+#                color=cm.hsv(float(j / n_parts)),
+#            )
+
+#        plt.axis("off")
+        
+      fname = os.path.join(directory, str(counter) + "_" + str(i) + ".png")
+      print("Saving prediction " + fname)
+      cv2.imwrite(fname, img_keypoints)
+
+#        plt.savefig(fname, bbox_inches="tight")
+#        plt.close()
 
 
 def save(img, mu, counter, model_dir):
@@ -220,6 +229,7 @@ def save(img, mu, counter, model_dir):
 
         plt.axis("off")
         fname = os.path.join(directory, str(counter) + "_" + str(i) + ".png")
+        print(fname)
         plt.savefig(fname, bbox_inches="tight")
         plt.close()
 
@@ -305,3 +315,131 @@ def populate_demo_csv_file(img_dir, csv_path="./datasets/deepfashion/data_demo.c
             f.write("" + str(idx) + "," + os.path.join("demo", img_path) + "\n")
 
 
+def draw_keypoint_markers(
+    img: np.ndarray,
+    keypoints: np.ndarray,
+    font_scale: float = 0.5,
+    thickness: int = 2,
+    font=cv2.FONT_HERSHEY_SIMPLEX,
+    marker_list=["o", "v", "x", "+", "<", "-", ">", "c"],
+) -> np.ndarray:
+    """ Draw keypoints on image with markers
+    Parameters
+    ----------
+    img : np.ndarray
+        shaped [H, W, 3] array  in range [0, 1]
+    keypoints : np.ndarray
+        shaped [kp, 2] - array giving keypoint positions in range [-1, 1] for x and y.
+        Keypoints[:, 0] is x-coordinate (horizontal).
+    font_scale : int, optional
+        openCV font scale passed to 'cv2.putText', by default 1
+    thickness : int, optional
+        openCV font thickness passed to 'cv2.putText', by default 2
+    font : cv2.FONT_xxx, optional
+        openCV font, by default cv2.FONT_HERSHEY_SIMPLEX
+    Examples
+    --------
+        from skimage import data
+        astronaut = data.astronaut()
+        keypoints = np.stack([np.linspace(-1, 1, 10), np.linspace(-1, 1, 10)], axis=1)
+        img_marked = draw_keypoint_markers(astronaut,
+                                            keypoints,
+                                            font_scale=2,
+                                            thickness=3)
+        plt.imshow(img_marked)
+    """
+
+    img_marked = img.copy()
+    keypoints = convert_range(keypoints, [-1, 1], [0, img.shape[0] - 1])
+    colors = make_colors(
+        keypoints.shape[0], bytes=False, cmap=plt.cm.inferno
+    )
+    for i, kp in enumerate(keypoints):
+        text = marker_list[i % len(marker_list)]
+        (label_width, label_height), baseline = cv2.getTextSize(
+            text, font, font_scale, thickness
+        )
+        textX = kp[0]
+        textY = kp[1]
+        font_color = colors[i]
+        text_position = (
+            textX - label_width / 2.0 - baseline,
+            textY - label_height / 2.0 + baseline,
+        )
+        text_position = tuple([int(x) for x in text_position])
+        img_marked = cv2.putText(
+            img_marked,
+            text,
+            text_position,
+            font,
+            font_scale,
+            font_color,
+            thickness=thickness,
+        )
+    return img_marked
+
+
+def convert_range(
+    array: np.ndarray, input_range: Iterable[int], target_range: Iterable[int]
+) -> np.ndarray:
+    """convert range of array from input range to target range
+    Parameters
+    ----------
+    array: np.ndarray
+        array in any shape
+    input_range: Iterable[int]
+        range of array values in format [min, max]
+    output_range: Iterable[int]
+        range of rescaled array values in format [min, max]
+    Returns
+    -------
+    np.ndarray
+        rescaled array
+    Examples
+    --------
+        t = imageutils.convert_range(np.array([-1, 1]), [-1, 1], [0, 1])
+        assert np.allclose(t, np.array([0, 1]))
+        t = imageutils.convert_range(np.array([0, 1]), [0, 1], [-1, 1])
+        assert np.allclose(t, np.array([-1, 1]))
+    """
+    if input_range[1] <= input_range[0]:
+        raise ValueError
+    if target_range[1] <= target_range[0]:
+        raise ValueError
+
+    a = input_range[0]
+    b = input_range[1]
+    c = target_range[0]
+    d = target_range[1]
+    return (array - a) / (b - a) * (d - c) + c
+
+
+
+def make_colors(
+    n_classes: int,
+    cmap: Callable = plt.cm.inferno,
+    bytes: bool = False,
+    with_background=False,
+    background_color=np.array([1, 1, 1]),
+    background_id=0,
+) -> np.ndarray:
+    """make a color array using the specified colormap for `n_classes` classes
+    # TODO: test new background functionality
+    Parameters
+    ----------
+    n_classes: int
+        how many classes there are in the mask
+    cmap: Callable, optional, by default plt.cm.inferno
+        matplotlib colormap handle
+    bytes: bool, optional, by default False
+        bytes option passed to `cmap`.
+        Returns colors in range [0, 1] if False and range [0, 255] if True
+    Returns
+    -------
+    colors: ndarray
+        an array with shape [n_classes, 3] representing colors in the range [0, 1].
+    """
+    colors = cmap(np.linspace(0, 1, n_classes), alpha=False, bytes=bytes)[:, :3]
+    if with_background:
+        colors = np.insert(colors, background_id, background_color, axis=0)
+    return colors
