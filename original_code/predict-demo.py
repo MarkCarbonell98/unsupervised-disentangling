@@ -16,6 +16,7 @@ from utils import (
     find_ckpt,
     batch_colour_map,
     save_demo,
+    save,
     initialize_uninitialized,
     populate_demo_csv_file
 )
@@ -26,6 +27,7 @@ import sklearn
 import seaborn
 from sklearn import *
 import json
+import cv2
 
 
 def pck(distances: np.ndarray, tolerance_pixels: int, image_size: int):
@@ -77,7 +79,7 @@ def main(arg):
     if "infer" in arg.mode:
         with tf.Session(config=config) as sess:
 
-            model = Model(orig_images, arg, tps_param_dic)
+            model = Model(orig_images, arg, tps_param_dic, optimize=False)
             tvar = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
             saver = tf.train.Saver(var_list=tvar)
             merged = tf.summary.merge_all()
@@ -111,7 +113,7 @@ def main(arg):
                         ],
                         feed_dict=trf,
                     )
-                    save_demo(img[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
+                    save(img[: arg.bn, ...], mu[: arg.bn, ...],img_rec[: arg.bn, ...], mu[: arg.bn, ...], ctr, model_save_dir)
                     mu_list.append(mu[: arg.bn, ...])
                 except tf.errors.OutOfRangeError:
                     print("End of Prediction")
