@@ -204,10 +204,10 @@ def save_demo(img, mu, counter, model_dir, target_dir="demo-predictions"):
 #        plt.close()
 
 
-def save(img, mu, counter, model_dir):
+def save(img, mu, counter, model_dir, dirname="images"):
     batch_size, out_shape = img.shape[0], img.shape[1:3]
     marker_list = ["o", "v", "s", "|", "_"]
-    directory = os.path.join(model_dir, "images")
+    directory = os.path.join(model_dir, dirname)
     if not os.path.exists(directory):
         os.makedirs(directory)
     s = out_shape[0] // 8
@@ -325,6 +325,7 @@ def convert_image_np(inp):
     inp = np.clip(inp, 0, 1)
     return inp
 
+
 def populate_demo_csv_file(img_dir, csv_path="./datasets/deepfashion/data_demo.csv"):
     """ Populate the csv_path with image names from img_dir """
     images = [f for f in os.listdir(img_dir)]
@@ -336,13 +337,13 @@ def populate_demo_csv_file(img_dir, csv_path="./datasets/deepfashion/data_demo.c
 
 
 def draw_keypoint_markers(
-    img: np.ndarray,
-    keypoints: np.ndarray,
-    font_scale: float = 0.5,
-    thickness: int = 2,
+    img,
+    keypoints,
+    font_scale = 0.5,
+    thickness = 2,
     font=cv2.FONT_HERSHEY_SIMPLEX,
-    marker_list=["o", "v", "x", "+", "<", "-", ">", "c"],
-) -> np.ndarray:
+    marker_list=["o", "v", "x", "+", "<", "-", ">", "c"]
+):
     """ Draw keypoints on image with markers
     Parameters
     ----------
@@ -400,8 +401,8 @@ def draw_keypoint_markers(
 
 
 def convert_range(
-    array: np.ndarray, input_range: Iterable[int], target_range: Iterable[int]
-) -> np.ndarray:
+    array, input_range, target_range
+):
     """convert range of array from input range to target range
     Parameters
     ----------
@@ -436,13 +437,13 @@ def convert_range(
 
 
 def make_colors(
-    n_classes: int,
-    cmap: Callable = plt.cm.inferno,
-    bytes: bool = False,
+    n_classes,
+    cmap,
+    bytes = False,
     with_background=False,
     background_color=np.array([1, 1, 1]),
     background_id=0,
-) -> np.ndarray:
+):
     """make a color array using the specified colormap for `n_classes` classes
     # TODO: test new background functionality
     Parameters

@@ -135,11 +135,11 @@ def reverse_batch(tensor, n_reverse):
     :param n_reverse:
     :return:
     """
-    bn, *rest = tensor.get_shape().as_list()
+    bn, _rest = tensor.get_shape().as_list()
     assert (bn / n_reverse).is_integer()
-    tensor = tf.reshape(tensor, shape=[bn // n_reverse, n_reverse, *rest])
+    tensor = tf.reshape(tensor, shape=[bn // n_reverse, n_reverse, _rest])
     tensor_rev = tensor[:, ::-1]
-    tensor_rev = tf.reshape(tensor_rev, shape=[bn, *rest])
+    tensor_rev = tf.reshape(tensor_rev, shape=[bn, _rest])
     return tensor_rev
 
 
@@ -197,7 +197,7 @@ def part_map_to_mu_L_inv(part_maps, scal):
 
     a = tf.sqrt(
         a_sq + eps
-    )  # Σ = L L^T Prec = Σ^-1  = L^T^-1 * L^-1  ->looking for L^-1 but first L = [[a, 0], [b, c]
+    )
     b = a_b / (a + eps)
     c = tf.sqrt(b_sq_add_c_sq - b ** 2 + eps)
     z = tf.zeros_like(a)
@@ -218,7 +218,7 @@ def part_map_to_mu_L_inv(part_maps, scal):
 
     L_inv = (
         scal / (det + eps) * tf.concat([row_1, row_2], axis=-2)
-    )  # L^⁻1 = 1/(ac)* [[c, 0], [-b, a]
+    )
     tf.summary.scalar(name="L_inv_0_0", tensor=L_inv[0, 0, 0, 0])
     tf.summary.scalar(name="L_inv_1_0", tensor=L_inv[0, 0, 1, 0])
     tf.summary.scalar(name="L_inv_1_1", tensor=L_inv[0, 0, 1, 1])

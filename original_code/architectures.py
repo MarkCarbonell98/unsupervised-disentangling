@@ -148,8 +148,8 @@ def _hourglass(inputs, n, numOut, train, name="hourglass"):
 
 @wrappy
 def seperate_hourglass(inputs, train, n_landmark, n_features, nFeat_1, nFeat_2):
-    _, h, w, c = inputs.get_shape().as_list()
-    nLow = 4  # hourglass preprocessing reduces by factor two hourglass by factor 16 (2⁴)  e.g. 128 -> 4
+    _ , h, w, c = inputs.get_shape().as_list()
+    nLow = 4  # hourglass preprocessing reduces by factor two hourglass by factor 16 (2^4)  e.g. 128 -> 4
     n_Low_feat = 1
     dropout_rate = 0.2
 

@@ -226,4 +226,5 @@ def write_hyperparameters(r, save_dir):
         for k, v in r.items():
             line = "{}, {}".format(k, v)
             print(line)
-            print(line, file=input_file)
+            print >> input_file, line
+            # print(line, file=input_file)

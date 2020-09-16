@@ -68,19 +68,19 @@ class ModelArgs:
     covariance = True
     average_features_mode = False
     heat_feat_normalize = True
-    bn: int = 32
+    bn = 32
     patch_size = [49, 49]
-    L1: bool = False
-    fold_with_shape: bool = False
-    c_l2: float = 1.0
-    c_trans: float = 5.0
-    c_precision_trans: float = 0.1
-    c_t: float = 1.0
-    c_g: float = 0.0002
-    print_vars: bool = False
-    lr: float = 0.0001
-    lr_d: float = 0.0001
-    adversarial: bool = False
+    L1 = False
+    fold_with_shape = False
+    c_l2 = 1.0
+    c_trans= 5.0
+    c_precision_trans= 0.1
+    c_t= 1.0
+    c_g= 0.0002
+    print_vars= False
+    lr= 0.0001
+    lr_d= 0.0001
+    adversarial= False
 
     # rec_stages
     # part_depths
