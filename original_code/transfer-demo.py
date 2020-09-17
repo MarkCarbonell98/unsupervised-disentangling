@@ -18,6 +18,7 @@ from utils import (
     save_demo,
     save,
     save_no_kps,
+    save_transfer,
     initialize_uninitialized,
     populate_demo_csv_file
 )
@@ -117,6 +118,7 @@ def main(arg):
                     save_no_kps(img[: arg.bn, ...], ctr, model_save_dir, dirname="images")
                     save_no_kps(img_rec, ctr, model_save_dir, dirname="images_transfer")
                     save(img[: arg.bn, ...], mu[:arg.bn, ...], ctr, model_save_dir, dirname="images_kps")
+                    save_transfer(img[:arg.bn, ...], img[:arg.bn, ], img_rec, model_save_dir, dirname="transfer_plots")
                     mu_list.append(mu[: arg.bn, ...])
                 except tf.errors.OutOfRangeError:
                     print("End of Prediction")

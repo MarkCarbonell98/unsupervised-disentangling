@@ -233,6 +233,28 @@ def save(img, mu, counter, model_dir, dirname="images"):
         plt.savefig(fname, bbox_inches="tight")
         plt.close()
 
+def save_transfer(imgs, imgs_kps, imgs_transfer, model_dir, dirname="transfer_plots"):
+    batch_size, x,y,z = imgs.shape
+    directory = os.path.join(model_dir, dirname)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    m = np.zeros((x,y,z), dtype="uint8")
+    for i in range(batch_size):
+        m = np.concatenate((m, imgs[i]), axis = 0)
+
+    tn = imgs_transfer.shape[0]
+    imgs_transfer = np.concatenate((imgs_transfer[tn//2:], imgs_transfer[:tn//2]))
+    for i in range(batch_size):
+        new_row = imgs_kps[i].copy()
+        for j in range(i * batch_size, (i+1) * batch_size):
+            new_row = np.concatenate((new_row, imgs_transfer[j]), axis = 0)
+        m = np.concatenate((m, new_row), axis=1)
+    plt.imshow(m)
+    plt.axis("off")
+    fname = os.path.join(directory, "transfer_plot.png")
+    print(fname)
+    plt.savefig(fname, bbox_inches="tight")
+    plt.close()
 
 
 def save_no_kps(img, counter, model_dir, dirname="images"):
