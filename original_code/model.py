@@ -153,7 +153,7 @@ class Model:
             self.optimize
         if visualize:
             self.visualize()
-
+    
     def graph(self):
         with tf.variable_scope("tps"):
             coord, vector = make_input_tps_param(self.tps_par)
