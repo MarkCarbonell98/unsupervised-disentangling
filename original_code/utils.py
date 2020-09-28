@@ -233,7 +233,8 @@ def save(img, mu, counter, model_dir, dirname="images"):
         plt.savefig(fname, bbox_inches="tight")
         plt.close()
 
-def save_transfer(imgs, imgs_kps, imgs_transfer, model_dir, dirname="transfer_plots"):
+def save_transfer(imgs, imgs_transfer, model_dir, dirname="transfer_plots"):
+    imgs_kps = imgs_transfer.copy()
     batch_size, x,y,z = imgs.shape
     directory = os.path.join(model_dir, dirname)
     if not os.path.exists(directory):
@@ -255,6 +256,40 @@ def save_transfer(imgs, imgs_kps, imgs_transfer, model_dir, dirname="transfer_pl
     print(fname)
     cv2.imwrite(fname, m)
 
+def save_part_transfer(imgs, imgs_transfer, imgs_part_based, model_dir, dirname="transfer_plots"):
+    imgs_kps = imgs_transfer.copy()
+    batch_size, x,y,z = imgs.shape
+    n_imgs_part_based, xpb, ypb,zpb = imgs_part_based.shape
+    directory = os.path.join(model_dir, dirname)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    m = np.zeros((x,y,z), dtype="uint8")
+    for i in range(batch_size):
+        m = np.concatenate((m, imgs[i]), axis = 0)
+
+    tn = imgs_transfer.shape[0]
+    imgs_transfer = np.concatenate((imgs_transfer[tn//2:], imgs_transfer[:tn//2]))
+    for i in range(batch_size):
+        new_row = imgs_kps[i].copy()
+        for j in range(i * batch_size, (i+1) * batch_size):
+            new_row = np.concatenate((new_row, imgs_transfer[j]), axis = 0)
+        m = np.concatenate((m, new_row), axis=1)
+
+    left_col = np.zeros((x,y,z), dtype="uint8")
+    for i in range(n_imgs_part_based):
+        img_resized = cv2.cvtColor(imgs_part_based[i], cv2.COLOR_RGB2BGR) 
+        img_resized = cv2.resize(img_resized, dsize=(x,y), interpolation=cv2.INTER_CUBIC)
+        img_resized = np.cast["uint8"](img_resized*255)
+        left_col = np.vstack((left_col, img_resized))
+    m = np.hstack((left_col, m))
+    m = cv2.cvtColor(m, cv2.COLOR_RGB2BGR)
+    m = np.cast["uint8"](m*255)
+    fname = os.path.join(directory, "transfer_plot.png")
+    print(fname)
+    cv2.imwrite(fname, m)
+
+
+
 
 def save_no_kps(img, counter, model_dir, dirname="images"):
     batch_size, out_shape = img.shape[0], img.shape[1:3]
@@ -266,14 +301,11 @@ def save_no_kps(img, counter, model_dir, dirname="images"):
     step_size = 1
 
     for i in range(0, steps, step_size):
-        plt.imshow(img[i])
-
-        plt.axis("off")
+        img_i = cv2.cvtColor(img[i], cv2.COLOR_RGB2BGR) * 255
+        img_i = img_i.astype(np.uint8)
         fname = os.path.join(directory, str(counter) + "_" + str(i) + ".png")
+        cv2.imwrite(fname, img_i)
         print(fname)
-        plt.savefig(fname, bbox_inches="tight")
-        plt.close()
-
 
 @wrappy
 def tf_summary_feat_and_parts(

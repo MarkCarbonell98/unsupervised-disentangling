@@ -103,7 +103,7 @@ class ModelArgs:
 
 
 class Model:
-    def __init__(self, orig_img, arg, tps_param_dic, optimize=True, visualize=True):
+    def __init__(self, orig_img, arg, tps_param_dic, optimize=True, visualize=True, filter_ = [1,] * 16):
         """
         :param orig_img:
         :param arg: object with following fields:  "in_dim, n_c, reconstr_dim, heat_dim, n_parts, n_features, nFeat1, nFeat2 rec_stages, part_depths, feat_slices, covariance,
@@ -113,6 +113,7 @@ class Model:
         """
 
         self.arg = arg
+        self.filter_ = filter_
 
         self.train = self.arg.mode == "train"
         self.tps_par = tps_param_dic
@@ -144,7 +145,8 @@ class Model:
 
         transfer_only = True
         if transfer_only:
-          self.transfer_graph()
+          # self.transfer_graph()
+          self.transfer_part_graph()
         else:
           self.graph()
 
@@ -267,7 +269,96 @@ class Model:
                 )
 
         self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    
+    def transfer_part_graph(self):
+        with tf.variable_scope("tps"):
+            coord, vector = make_input_tps_param(self.tps_par)
+            t_images, t_mesh = ThinPlateSpline(
+                self.image_orig, coord, vector, self.arg.in_dim, self.arg.n_c
+            )
+            self.image_in, self.image_rec = prepare_pairs(
+                t_images, self.arg.reconstr_dim, self.arg
+            )
+            # revert second pair order for transfer
+            self.transform_mesh = tf.image.resize_images(
+                t_mesh, size=(self.arg.heat_dim, self.arg.heat_dim)
+            )
+            self.volume_mesh = AbsDetJacobian(self.transform_mesh)
 
+        with tf.variable_scope("encoding"):
+            self.part_maps, raw_features = self.encoder(
+                self.image_in,
+                self.train,
+                self.arg.n_parts,
+                self.arg.n_features,
+                self.arg.nFeat_1,
+                self.arg.nFeat_2,
+            )
+
+            self.mu, self.L_inv = part_map_to_mu_L_inv(
+                part_maps=self.part_maps, scal=self.arg.L_inv_scal
+            )
+            self.features = get_features(raw_features, self.part_maps, slim=True) # [ B, 16, 24 ]
+
+            # roll feature order on second half of batch
+            filter_ = tf.reshape(tf.convert_to_tensor(self.filter_), (1,16,1))
+            filter_ = tf.cast(filter_, tf.float32)
+
+            f, _ = tf.split(self.features, 2, axis=0)
+            f_swap = tf.keras.backend.repeat_elements(f, self.arg.bn, 0)
+            f_keep = tf.tile(f, (self.arg.bn, 1, 1))
+            # self.features = tf.keras.backend.repeat_elements(f, self.arg.bn, 0)
+            self.features = f_swap * filter_ + f_keep * (1 - filter_)
+            mu, _ = tf.split(self.mu, 2, axis=0)
+            L_inv, _ = tf.split(self.L_inv, 2, axis=0)
+            self.mu = tf.tile(mu, (self.arg.bn, 1, 1))
+            self.L_inv = tf.tile(L_inv, (self.arg.bn, 1, 1, 1))
+            self.color_maps = batch_colour_map(self.part_maps[:self.arg.bn] * tf.reshape(filter_, (1,1,1,16)))
+
+
+        with tf.variable_scope("transform"):
+            integrant = tf.squeeze(
+                tf.expand_dims(self.part_maps, axis=-1)
+                * tf.expand_dims(self.volume_mesh, axis=-1)
+            )
+            self.integrant = integrant / tf.reduce_sum(
+                integrant, axis=[1, 2], keepdims=True
+            )
+
+            self.mu_t = tf.einsum("aijk,aijl->akl", self.integrant, self.transform_mesh)
+            transform_mesh_out_prod = tf.einsum(
+                "aijm,aijn->aijmn", self.transform_mesh, self.transform_mesh
+            )  # [2, 64, 64, 2, 2
+            mu_out_prod = tf.einsum(
+                "akm,akn->akmn", self.mu_t, self.mu_t
+            )  # [2, 16, 2, 2]
+            self.stddev_t = (
+                tf.einsum("aijk,aijmn->akmn", self.integrant, transform_mesh_out_prod)
+                - mu_out_prod
+            )
+
+            with tf.variable_scope("generation"):
+                with tf.variable_scope("encoding"):
+                    self.encoding_same_id = feat_mu_to_enc(
+                        self.features,
+                        self.mu,
+                        self.L_inv,
+                        self.arg.rec_stages,
+                        self.arg.part_depths,
+                        self.arg.feat_slices,
+                        n_reverse=2,
+                        covariance=self.arg.covariance,
+                        feat_shape=self.arg.average_features_mode,
+                        heat_feat_normalize=self.arg.heat_feat_normalize,
+                        static=self.arg.static,
+                    )
+
+                self.reconstruct_same_id = self.img_decoder(
+                    self.encoding_same_id,
+                    self.train,
+                    self.arg.reconstr_dim,
+                    self.arg.n_c,
+                )
 
     def transfer_graph(self):
         with tf.variable_scope("tps"):
@@ -297,10 +388,17 @@ class Model:
             self.mu, self.L_inv = part_map_to_mu_L_inv(
                 part_maps=self.part_maps, scal=self.arg.L_inv_scal
             )
-            self.features = get_features(raw_features, self.part_maps, slim=True)
+            self.features = get_features(raw_features, self.part_maps, slim=True) # [ B, 16, 24 ]
+
             # roll feature order on second half of batch
+            # filter_ = [1,] + [0,] * 16
+            # filter_ = tf.convert_to_tensor(filter_).reshape(1, 16, 1)
+
             f, _ = tf.split(self.features, 2, axis=0)
+            # f_swap = tf.keras.backend.repeat_elements(f, self.arg.bn, 0)
+            # f_keep = tf.tile(f, (self.arg.bn, 1, 1))
             self.features = tf.keras.backend.repeat_elements(f, self.arg.bn, 0)
+            # self.features = f_swap * filter_ + f_keep * (1 - filter_)
             mu, _ = tf.split(self.mu, 2, axis=0)
             L_inv, _ = tf.split(self.L_inv, 2, axis=0)
             self.mu = tf.tile(mu, (self.arg.bn, 1, 1))

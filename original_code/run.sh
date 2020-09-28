@@ -13,7 +13,29 @@
 # conda install seaborn
 # conda install -c conda-forge gdown
 
-python "$(dirname "$0")/transfer-demo.py" baseline_deepfashion_256 \
+# python "$(dirname "$0")/transfer-demo.py" baseline_deepfashion_256 \
+#     --dataset deepfashion \
+#     --bn 8 \
+#     --static \
+#     --in_dim 256 \
+#     --reconstr_dim 256 \
+#     --covariance \
+#     --scal 1.0 \
+#     --contrast_var 0.01 \
+#     --brightness_var 0.01 \
+#     --saturation_var 0.01 \
+#     --hue_var 0.01 \
+#     --adversarial \
+#     --mode infer \
+#     --pad_size 50 \
+#     --pck_tolerance 6 2>&1 | grep -Evi 'warning'
+PART_IDX=-1
+if [ -n "$1" ]; then
+    PART_IDX=$1
+fi
+
+
+python "$(dirname "$0")/transfer-parts-demo.py" baseline_deepfashion_256 \
     --dataset deepfashion \
     --bn 8 \
     --static \
@@ -27,5 +49,8 @@ python "$(dirname "$0")/transfer-demo.py" baseline_deepfashion_256 \
     --hue_var 0.01 \
     --adversarial \
     --mode infer \
-    --pad_size 50 \
+    --pad_size 0 \
+    --part-idx "$PART_IDX"  \
     --pck_tolerance 6 2>&1 | grep -Evi 'warning'
+
+back eog experiments/baseline_deepfashion_256/transfer_plots/transfer_plot.png

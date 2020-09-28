@@ -8,6 +8,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("name", type=str, help="name of the experiment")
 
+    parser.add_argument("--part-idx", type=int, default=-1)
+
     # run setting
     parser.add_argument(
         "--mode",
