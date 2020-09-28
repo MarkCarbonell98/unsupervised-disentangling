@@ -249,12 +249,11 @@ def save_transfer(imgs, imgs_kps, imgs_transfer, model_dir, dirname="transfer_pl
         for j in range(i * batch_size, (i+1) * batch_size):
             new_row = np.concatenate((new_row, imgs_transfer[j]), axis = 0)
         m = np.concatenate((m, new_row), axis=1)
-    plt.imshow(m)
-    plt.axis("off")
     fname = os.path.join(directory, "transfer_plot.png")
+    m = cv2.cvtColor(m, cv2.COLOR_RGB2BGR)
+    m = np.cast["uint8"](m*255)
     print(fname)
-    plt.savefig(fname, bbox_inches="tight")
-    plt.close()
+    cv2.imwrite(fname, m)
 
 
 def save_no_kps(img, counter, model_dir, dirname="images"):
