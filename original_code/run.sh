@@ -52,5 +52,3 @@ python "$(dirname "$0")/transfer-parts-demo.py" baseline_deepfashion_256 \
     --pad_size 0 \
     --part-idx "$PART_IDX"  \
     --pck_tolerance 6 2>&1 | grep -Evi 'warning'
-
-back eog experiments/baseline_deepfashion_256/transfer_plots/transfer_plot.png
