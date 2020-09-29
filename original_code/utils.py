@@ -234,7 +234,7 @@ def save(img, mu, counter, model_dir, dirname="images"):
         plt.close()
 
 def save_transfer(imgs, imgs_transfer, model_dir, dirname="transfer_plots"):
-    imgs_kps = imgs_transfer.copy()
+    imgs_kps = imgs.copy()
     batch_size, x,y,z = imgs.shape
     directory = os.path.join(model_dir, dirname)
     if not os.path.exists(directory):
@@ -257,7 +257,7 @@ def save_transfer(imgs, imgs_transfer, model_dir, dirname="transfer_plots"):
     cv2.imwrite(fname, m)
 
 def save_part_transfer(imgs, imgs_transfer, imgs_part_based, model_dir, dirname="transfer_plots"):
-    imgs_kps = imgs_transfer.copy()
+    imgs_kps = imgs.copy()
     batch_size, x,y,z = imgs.shape
     n_imgs_part_based, xpb, ypb,zpb = imgs_part_based.shape
     directory = os.path.join(model_dir, dirname)
