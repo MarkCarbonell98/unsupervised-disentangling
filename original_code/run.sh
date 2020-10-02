@@ -29,13 +29,13 @@
 #     --mode infer \
 #     --pad_size 50 \
 #     --pck_tolerance 6 2>&1 | grep -Evi 'warning'
-PART_IDX=-1
+PART_IDX=16
 if [ -n "$1" ]; then
     PART_IDX=$1
 fi
 
 
-python "$(dirname "$0")/transfer-parts-demo.py" baseline_deepfashion_256 \
+python "$(dirname "$0")/transfer-parts-demo-fast.py" baseline_deepfashion_256 \
     --dataset deepfashion \
     --bn 8 \
     --static \

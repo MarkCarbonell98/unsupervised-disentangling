@@ -5,7 +5,6 @@ from utils import wrappy
 
 def _conv(inputs, filters, kernel_size=1, strides=1, pad="VALID", name="conv"):
     with tf.variable_scope(name):
-        # Kernel for convolution, Xavier Initialisation
         kernel = tf.get_variable(
             shape=[kernel_size, kernel_size, inputs.get_shape().as_list()[3], filters],
             initializer=tf.contrib.layers.xavier_initializer(uniform=False),
