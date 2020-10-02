@@ -5,11 +5,11 @@ import os
 
 n = int(sys.argv[1])
 
-def merge_all_transfers(path="experiments/baseline_deepfashion_256/transfer_plots", n_transfers = n, save_dir="experiments/baseline_deepfashion_256/all_transfer_plots"):
-    first_filename = path + "_-1/transfer_plot.png"
+def merge_all_transfers(path="experiments/baseline_deepfashion_256/part_based_transfer_plots", n_transfers = n, save_dir="experiments/baseline_deepfashion_256/all_transfer_plots"):
+    first_filename = path + "/transfer_plot_-1.png"
     m = cv2.imread(first_filename)
     for i in range(n_transfers):
-        filename = path + "_" + str(i) +  "/transfer_plot.png"
+        filename = path + "/transfer_plot_" + str(i) + ".png"
         transfer_plot = cv2.imread(filename)
         m = np.vstack((m, transfer_plot))
         print(m.shape)
