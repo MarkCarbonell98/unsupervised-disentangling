@@ -21,7 +21,8 @@ from utils import (
     save_no_kps,
     save_transfer,
     initialize_uninitialized,
-    populate_demo_csv_file
+    populate_demo_csv_file,
+    merge_all_transfers
 )
 import tensorflow as tf
 import numpy as np
@@ -49,7 +50,8 @@ def main(arg):
             load_and_preprocess_image, num_parallel_calls=arg.data_parallel_calls
         )
         dataset = dataset.batch(arg["bn"], drop_remainder=True)
-        iterator = dataset.make_one_shot_iterator()
+        iterator = dataset.make_initializable_iterator()
+        # iterator = dataset.make_one_shot_iterator()
         next_element = iterator.get_next()
         b_images = next_element
 
@@ -83,23 +85,29 @@ def main(arg):
 
         n = arg.part_idx
         filters_ = [[1] * n]
-        filters_ += [[0]*n for i in range(n)]
-        for i in range(n):
-            filters_[i][i] = 1
+        for i in range(16):
+            base_filter = [0,] * 16
+            base_filter[i] = 1
+            filters_.append(base_filter)
+        filters_ += [[0] * n]
 
-        for filter_ in filters_:
-            tf.reset_default_graph()
-            with tf.Session(config=config) as sess:
-                model = Model(orig_images, arg, tps_param_dic, optimize=False, visualize=False, filter_ = filter_)
-                tvar = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-                saver = tf.train.Saver(var_list=tvar)
-                merged = tf.summary.merge_all()
+        with tf.Session(config=config) as sess:
+            filter_var = tf.placeholder("float", (16,))
+            model = Model(orig_images, arg, tps_param_dic, optimize=False, visualize=False, filter_ = filter_var)
+            tvar = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+            saver = tf.train.Saver(var_list=tvar)
+            merged = tf.summary.merge_all()
 
-                ckpt, ctr = find_ckpt(os.path.join(model_save_dir, "saved_model"))
-                saver.restore(sess, ckpt)
+            ckpt, ctr = find_ckpt(os.path.join(model_save_dir, "saved_model"))
+            base_ctr = ctr
+            saver.restore(sess, ckpt)
 
-                initialize_uninitialized(sess)
-                mu_list = []
+            initialize_uninitialized(sess)
+            mu_list = []
+
+            for i, filter_ in enumerate(filters_):
+                sess.run(iterator.initializer)
+
                 while True:
                     try:
                         feed = transformation_parameters(
@@ -112,10 +120,10 @@ def main(arg):
                             rot_scal: feed.rot_scal,
                             off_scal: feed.off_scal,
                             augm_scal: feed.augm_scal,
+                            model.filter_: np.array(filter_),
                         }
                         ctr += 1
-
-                        img, img_rec, mu, heat_raw, part_maps_rgb = sess.run(
+                        img, img_rec, mu, heat_raw, part_maps_rgb  = sess.run(
                             [
                                 model.image_in,
                                 model.reconstruct_same_id,
@@ -123,86 +131,24 @@ def main(arg):
                                 batch_colour_map(model.part_maps),
                                 model.color_maps
                             ],
-                            feed_dict=trf,
+                            feed_dict=trf
                         )
 
-                        save_no_kps(img[: arg.bn, ...], ctr, model_save_dir, dirname="images")
+                        if not os.path.exists(os.path.join(model_save_dir,'images/')) or len(os.listdir(os.path.join(model_save_dir,'images/'))) < 8:
+                                save_no_kps(img[: arg.bn, ...], ctr, model_save_dir, dirname="images")
+
                         save_no_kps(img_rec, ctr, model_save_dir, dirname="images_transfer")
 
                         part_maps_rgb /= part_maps_rgb.max(axis=(1,2), keepdims=True)
 
                         save_no_kps(part_maps_rgb, ctr, model_save_dir, dirname="part_maps_rgb")
-                        save_part_transfer(img[: arg.bn, ...], img_rec, part_maps_rgb, model_save_dir, dirname="transfer_plots")
-                        # save_transfer(img[:arg.bn, ...], img[:arg.bn, ], img_rec, model_save_dir, dirname="transfer_plots")
+                        save_part_transfer(img[: arg.bn, ...], img_rec, part_maps_rgb, ctr, model_save_dir, dirname="part_based_transfer_plots")
+
                         mu_list.append(mu[: arg.bn, ...])
                     except tf.errors.OutOfRangeError:
                         print("End of Prediction")
                         break
-                print("Saving outputs")
-                mu_list = np.concatenate(mu_list, axis=0)
-                np.savez_compressed(
-                    os.path.join(model_save_dir, "keypoints_predicted.npz"),
-                    keypoints_predicted=mu_list,
-                )
-
-    if "eval" in arg.mode:
-        # TODO: extract method
-        if arg.dataset in ["deepfashion"]:
-            # regress to keypoints
-            with np.load(
-                os.path.join(model_save_dir, "keypoints_predicted.npz")
-            ) as data:
-                keypoints_predicted = data["keypoints_predicted"]
-
-            with open(keypoint_files_map[arg.dataset], "rb",) as f:
-                gt_keypoint_data = json.load(f)
-                gt_keypoints = (
-                    np.stack([d["keypoints"] for d in gt_keypoint_data], axis=0) / 256.0
-                )
-                joint_order = gt_keypoint_data[0]["joint_order"]
-
-            N = keypoints_predicted.shape[0]
-
-            X_train = keypoints_predicted[:N, ...].reshape(N, -1)
-            y_train = gt_keypoints[:N, ...].reshape(N, -1)
-            X_test = X_train
-
-            regr = sklearn.linear_model.Ridge(alpha=0.0, fit_intercept=False)
-            _ = regr.fit(X_train, y_train)
-            y_predict = regr.predict(X_test)
-            regressed_keypoints = y_predict.reshape(N, -1, 2)
-            joint_order = gt_keypoint_data[0]["joint_order"]
-            landmarks_gt = gt_keypoints[:N, ...]
-            landmarks_regressed = y_predict.reshape((N, -1, 2))
-            distances = np.linalg.norm(landmarks_gt - landmarks_regressed, axis=-1)
-            np.savez_compressed(
-                os.path.join(model_save_dir, "keypoints_regressed.npz"),
-                regressed_keypoints=landmarks_regressed,
-                distances=distances,
-            )
-
-            import seaborn
-            from matplotlib import pyplot as plt
-            import pandas as pd
-
-            table = pd.DataFrame(distances, columns=joint_order.values())
-
-            plt.style.use("seaborn-whitegrid")
-            NB_RC_PARAMS = {
-                "figure.figsize": [8, 5],
-                "figure.dpi": 220,
-                "figure.autolayout": True,
-                "legend.frameon": True,
-            }
-            with plt.rc_context(NB_RC_PARAMS):
-                ax = table.boxplot(rot=45, showfliers=False, fontsize=12)
-                ax.set_ylabel(r"$||e||$")
-                ax.set_ylim([0, 0.1])
-                plt.savefig(os.path.join(model_save_dir, "keypoint_distances.png"))
-
-            pck_value = pck(distances, arg.pck_tolerance, arg.in_dim)
-            with open(os.path.join(model_save_dir, "metrics.txt"), "w") as f:
-                print("pck : {:.0f}%".format(100 * pck_value))
+            merge_all_transfers(model_save_dir, read_dir="part_based_transfer_plots", write_dir="all_transfer_plots")
 
 
 if __name__ == "__main__":

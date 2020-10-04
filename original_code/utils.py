@@ -14,7 +14,6 @@ from shutil import copyfile
 from dotmap import DotMap
 import cv2
 
-
 def wrappy(func):
     def wrapped(*args, **kwargs):
         with tf.variable_scope(func.__name__):
@@ -256,7 +255,7 @@ def save_transfer(imgs, imgs_transfer, model_dir, dirname="transfer_plots"):
     print(fname)
     cv2.imwrite(fname, m)
 
-def save_part_transfer(imgs, imgs_transfer, imgs_part_based, model_dir, dirname="transfer_plots"):
+def save_part_transfer(imgs, imgs_transfer, imgs_part_based, ctr, model_dir, dirname="transfer_plots"):
     imgs_kps = imgs.copy()
     batch_size, x,y,z = imgs.shape
     n_imgs_part_based, xpb, ypb,zpb = imgs_part_based.shape
@@ -284,7 +283,7 @@ def save_part_transfer(imgs, imgs_transfer, imgs_part_based, model_dir, dirname=
     m = np.hstack((left_col, m))
     m = cv2.cvtColor(m, cv2.COLOR_RGB2BGR)
     m = np.cast["uint8"](m*255)
-    fname = os.path.join(directory, "transfer_plot.png")
+    fname = os.path.join(directory, str(ctr) + ".png")
     print(fname)
     cv2.imwrite(fname, m)
 
@@ -517,3 +516,20 @@ def make_colors(
     if with_background:
         colors = np.insert(colors, background_id, background_color, axis=0)
     return colors
+
+
+def merge_all_transfers(base_path, read_dir, write_dir):
+    path = os.path.join(base_path, read_dir)
+    save_dir = os.path.join(base_path, write_dir)
+    imgs = [os.path.join(path, img) for img in sorted(os.listdir(path), key=lambda path: int(path.split(".")[0]))]
+    first_filename = imgs[0]
+    m = cv2.imread(first_filename)
+    for img_path in imgs:
+        transfer_plot = cv2.imread(img_path)
+        m = np.vstack((m, transfer_plot))
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    save_path = save_dir + "/all_transfer_plots.png"
+    print('All Transfer Plots: ', save_path)
+    cv2.imwrite(save_path, m)
+

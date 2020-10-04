@@ -187,7 +187,7 @@ class Model:
             self.features = get_features(raw_features, self.part_maps, slim=True) # [ B, 16, 24 ]
 
             # roll feature order on second half of batch
-            filter_ = tf.reshape(tf.convert_to_tensor(self.filter_), (1,16,1))
+            filter_ = tf.reshape(self.filter_, (1,16,1))
             filter_ = tf.cast(filter_, tf.float32)
 
             f, _ = tf.split(self.features, 2, axis=0)
